@@ -1,0 +1,9 @@
+project:
+    type: website
+
+format:
+    html:
+        highlight-style: github
+        theme: cerulean
+        
+

@@ -4,6 +4,6 @@ project:
 format:
     html:
         highlight-style: github
-        theme: cerulean
+        theme: Lux
         
 

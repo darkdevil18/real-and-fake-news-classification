@@ -1,0 +1,29 @@
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Hidden system files
+*.DS_Store
+
+# Quarto intermediate files (if using)
+_quarto/
+
+# Jupyter runtime and metadata
+~$*
+*.nbconvert.ipynb
+*.out.ipynb
+
+# VSCode hidden files
+.vscode/
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+*.log
+*.bak
+
+# Environment and config files
+.env
+.venv/

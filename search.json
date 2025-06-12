@@ -1,0 +1,156 @@
+[
+  {
+    "objectID": "new_classification_annotated_v2.html",
+    "href": "new_classification_annotated_v2.html",
+    "title": "\nFake and Real News Classification\n",
+    "section": "",
+    "text": "Fake and Real News Classification"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#observations",
+    "href": "new_classification_annotated_v2.html#observations",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🔍 Observations:",
+    "text": "🔍 Observations:\n\nThe dataset contains two textual fields: title and text.\nThe texts are formal news content, often starting with a dateline like “WASHINGTON (Reuters)…”. This structure will help guide our preprocessing and tokenization strategy.\n\n\nfake.head()\n\n\n\n\n\n\n\n\ntitle\ntext\n\n\n\n\n0\nDonald Trump Sends Out Embarrassing New Year’...\nDonald Trump just couldn t wish all Americans ...\n\n\n1\nDrunk Bragging Trump Staffer Started Russian ...\nHouse Intelligence Committee Chairman Devin Nu...\n\n\n2\nSheriff David Clarke Becomes An Internet Joke...\nOn Friday, it was revealed that former Milwauk...\n\n\n3\nTrump Is So Obsessed He Even Has Obama’s Name...\nOn Christmas day, Donald Trump announced that ...\n\n\n4\nPope Francis Just Called Out Donald Trump Dur...\nPope Francis used his annual Christmas Day mes...\n\n\n\n\n\n\n\n\nreal['label'] = 1\nfake['label'] = 0\n\n\ndf = pd.concat([real, fake], ignore_index=True)\n\n\nstop_words = set(stopwords.words('english'))\n\n\ndef remove_stopwrods(text):\n    word_tokens = word_tokenize(text)\n    filtered_text = [word for word in word_tokens if word.lower() not in stop_words and word.isalpha()]\n    return \" \".join(filtered_text)"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#rebuilding-unified-text-field",
+    "href": "new_classification_annotated_v2.html#rebuilding-unified-text-field",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🧱 Rebuilding Unified Text Field",
+    "text": "🧱 Rebuilding Unified Text Field\nWe ensure that the content field is constructed by combining title and text again. This guarantees that any previous operations affecting content are overwritten and consistent.\n\ndf['content'] = df['title'] + ' ' + df['text']"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#final-text-cleaning",
+    "href": "new_classification_annotated_v2.html#final-text-cleaning",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🧼 Final Text Cleaning",
+    "text": "🧼 Final Text Cleaning\nWe apply our custom remove_stopwrods function to clean the combined content field. This includes removing stopwords and non-alphabetic tokens.\n\ndf['content'] = df['content'].apply(remove_stopwrods)"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#dataset-shuffling",
+    "href": "new_classification_annotated_v2.html#dataset-shuffling",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🔀 Dataset Shuffling",
+    "text": "🔀 Dataset Shuffling\nShuffling the dataset ensures that there is no ordering bias when feeding data to the model.\n\ndf = df.sample(frac=1, random_state=101)"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#final-dataset-structure",
+    "href": "new_classification_annotated_v2.html#final-dataset-structure",
+    "title": "\nFake and Real News Classification\n",
+    "section": "📊 Final Dataset Structure",
+    "text": "📊 Final Dataset Structure\nWe keep only the content and label columns and reset the index. This creates a clean and consistent structure for downstream model training.\n\ndf = df[['content', 'label']].reset_index(drop=True)\ndf.head()\n\n\n\n\n\n\n\n\ncontent\nlabel\n\n\n\n\n0\nFactbox Humanitarian crisis worsens Bangladesh...\n1\n\n\n1\nTransgender court hearing set amid fight Trump...\n1\n\n\n2\nBRIEFCASES FULL MONEY One Undercover Whistlebl...\n0\n\n\n3\nFIVE REASONS Vote Donald Trump Video LANGUAGE ...\n0\n\n\n4\nTrump administration sued phone searches borde...\n1\n\n\n\n\n\n\n\n\n✅ Preview Output\nFrom the preview, we confirm that each row has cleaned content and an associated binary label."
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#dataframe-overview",
+    "href": "new_classification_annotated_v2.html#dataframe-overview",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🧾 DataFrame Overview",
+    "text": "🧾 DataFrame Overview\nWe check the data type and memory usage of the dataset to confirm its readiness for model processing.\n\ndf.info()\n\n&lt;class 'pandas.core.frame.DataFrame'&gt;\nRangeIndex: 44898 entries, 0 to 44897\nData columns (total 2 columns):\n #   Column   Non-Null Count  Dtype \n---  ------   --------------  ----- \n 0   content  44898 non-null  object\n 1   label    44898 non-null  int64 \ndtypes: int64(1), object(1)\nmemory usage: 701.7+ KB\n\n\n\n📐 Data Overview Output\nThere are 44,898 samples with two columns (content, label). No missing values are present, confirming data integrity."
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#custom-dataset-class",
+    "href": "new_classification_annotated_v2.html#custom-dataset-class",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🧱 Custom Dataset Class",
+    "text": "🧱 Custom Dataset Class\nThis defines a TextClassificationDataset PyTorch class to: - Split the dataset into train/test internally - Tokenize the content using tokenizers library - Return token IDs and labels in __getitem__\nThis enables flexible loading and tokenization of samples.\n\nclass TextClassificationDataset(Dataset):\n    def __init__(self, dataframe, tokenizer=None, text_column='content', label_column='label', train=False):\n        super().__init__()\n\n        train_df, test_df = train_test_split(dataframe,\n                                             test_size=0.1,\n                                             random_state=42,\n                                             shuffle=True,\n                                             stratify=dataframe[label_column]\n                                            )\n        \n        if train:\n            self.texts = train_df[text_column].tolist()\n            self.labels = train_df[label_column].tolist()\n\n            if tokenizer is None:\n                self._build_tokenizer(self.texts)\n            else:\n                self.tokenizer = tokenizer\n        else:\n            self.texts = test_df[text_column].tolist()\n            self.labels = test_df[label_column].tolist()\n\n            if tokenizer is None:\n                raise ValueError(\"Tokenizer must be provided for test split.\")\n\n            self.tokenizer = tokenizer\n        \n    def _build_tokenizer(self, texts):\n        self.tokenizer = Tokenizer(WordLevel(unk_token=\"&lt;unk&gt;\"))\n        self.tokenizer.pre_tokenizer = Whitespace()\n        trainer = WordLevelTrainer(special_tokens=[\"&lt;unk&gt;\", \"&lt;pad&gt;\"])\n        self.tokenizer.train_from_iterator(texts, trainer=trainer)\n        \n    def __len__(self):\n        return len(self.texts)\n\n    def __getitem__(self, idx):\n        token_ids = self.tokenizer.encode(self.texts[idx]).ids\n        token_ids = torch.tensor(token_ids, dtype=torch.long)\n        return token_ids, self.labels[idx]"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#batch-collation-function",
+    "href": "new_classification_annotated_v2.html#batch-collation-function",
+    "title": "\nFake and Real News Classification\n",
+    "section": "📦 Batch Collation Function",
+    "text": "📦 Batch Collation Function\nWe define a collate_batch function to: - Compute offsets for each sample (needed for EmbeddingBag) - Return token_ids, labels, and offsets for batch processing\n\ndef collate_batch(batch):\n    token_lists, labels = zip(*batch)\n\n    token_ids = torch.cat(token_lists)\n    labels = torch.tensor(labels, dtype=torch.long)\n\n    offsets = [0]\n    for tokens in token_lists:\n        offsets.append(offsets[-1] + len(tokens))\n\n    offsets = torch.tensor(offsets[:-1], dtype=torch.long)\n    \n    return token_ids, labels, offsets"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#initializing-datasets",
+    "href": "new_classification_annotated_v2.html#initializing-datasets",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🏗️ Initializing Datasets",
+    "text": "🏗️ Initializing Datasets\nWe instantiate training and validation dataset objects using our custom class. The tokenizer is trained only on the training set and reused for validation.\n\ntrain_dataset = TextClassificationDataset(df, train=True)\nval_dataset = TextClassificationDataset(df, tokenizer=train_dataset.tokenizer)"
+  },
+  {
+    "objectID": "new_classification_annotated_v2.html#dataloader-setup",
+    "href": "new_classification_annotated_v2.html#dataloader-setup",
+    "title": "\nFake and Real News Classification\n",
+    "section": "🔄 Dataloader Setup",
+    "text": "🔄 Dataloader Setup\nWe create PyTorch DataLoaders for both training and validation datasets. Batch size and collation function are specified for efficient loading.\n\ntrain_loader = DataLoader(train_dataset, batch_size=64, collate_fn=collate_batch, shuffle=True)\nval_loader = DataLoader(val_dataset, batch_size=16, collate_fn=collate_batch)\n\n\nnext(iter(train_loader))\n\n(tensor([ 4033, 21714,   594,  ...,  1042,  1476,   117]),\n tensor([1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1,\n         1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,\n         0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1]),\n tensor([    0,   546,   883,  1072,  1308,  1828,  1974,  2152,  2170,  2495,\n          2713,  2966,  3008,  3083,  3218,  4857,  5108,  5179,  5325,  5437,\n          5495,  5578,  5728,  5962,  6193,  6477,  6527,  6592,  6946,  7352,\n          7605,  7758,  8251,  8380,  8560,  8829,  9102,  9271,  9830, 10018,\n         10285, 10528, 10789, 11026, 11428, 11505, 11667, 11787, 12201, 12301,\n         12835, 12872, 13169, 13354, 13412, 13456, 13497, 13643, 14075, 14154,\n         14195, 14572, 14775, 15032]))\n\n\n\nnext(iter(val_loader))\n\n(tensor([11271,    87,   548,  ...,  4663,   138,   196]),\n tensor([1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1]),\n tensor([   0,  331,  449,  513,  884,  977, 1123, 1561, 1947, 2276, 2640, 2848,\n         3152, 3415, 3649, 3858]))\n\n\n\nclass TextClassifier(nn.Module):\n    def __init__(self, vocab_size: int, embed_dim: int, num_classes: int):\n        super().__init__()\n\n        self.vocab_size = vocab_size\n        self.embed_dim = embed_dim\n\n        self.embedding = nn.EmbeddingBag(num_embeddings=vocab_size, embedding_dim=embed_dim)\n        self.fc = nn.Linear(embed_dim, num_classes)\n\n    def forward(self, text, offsets):\n        embed = self.embedding(text, offsets)\n        return self.fc(embed)\n\n\ndevice = torch.device('cpu')\n\nembed_dim = 200\n\nvocab_size = train_dataset.tokenizer.get_vocab_size()\n\nmodel = TextClassifier(vocab_size, embed_dim, 2).to(device)\n\noptimizer = torch.optim.Adam(model.parameters())\n\nloss_fn = nn.CrossEntropyLoss()\n\nepochs = 10\n\nlosses = [] \naccs = []\nval_losses = []\nval_accs = []\n\nfor epoch in range(epochs):\n    total_loss = 0.0\n    cur_len = 0\n    correct = 0\n\n    model.train()\n    for text, labels, offsets in train_loader:\n        text, labels, offsets = text.to(device), labels.to(device), offsets.to(device)\n        outputs = model(text, offsets)\n\n        optimizer.zero_grad()\n\n        loss = loss_fn(outputs, labels)\n        loss.backward()\n        optimizer.step()\n\n        batch_size = labels.size(0)\n        total_loss += loss.item() * batch_size \n\n        _, predicted = torch.max(outputs, dim=1)\n        correct += (predicted == labels).sum().item()\n        \n        cur_len += batch_size\n        \n\n    losses.append(total_loss/cur_len)\n    accs.append(correct/cur_len)\n\n    val_loss = 0.0\n    cur_len = 0\n    correct = 0\n    \n    with torch.no_grad():\n        model.eval()\n        for text, labels, offsets in val_loader:\n            text, labels, offsets = text.to(device), labels.to(device), offsets.to(device)\n            outputs = model(text, offsets)\n    \n            loss = loss_fn(outputs, labels)\n    \n            batch_size = labels.size(0)\n            val_loss += loss.item() * batch_size \n    \n            _, predicted = torch.max(outputs, dim=1)\n            correct += (predicted == labels).sum().item()\n            \n            cur_len += batch_size\n\n    val_loss = val_loss / cur_len\n    val_acc = correct / cur_len\n\n    val_losses.append(val_loss)\n    val_accs.append(val_acc)\n\n    print(f\"[Epochs: {epoch+1:&gt;{len(str(epochs))}}/{epochs}]\",\n          f\"train_loss: {losses[-1]:.5f}, train_acc: {accs[-1]:.5f}\",\n          f\"val_loss: {val_losses[-1]:.5f}, val_acc: {val_accs[-1]:.5f}\",\n          sep=\" | \"\n         )\n\n[Epochs:  1/10] | train_loss: 0.20373, train_acc: 0.94410 | val_loss: 0.06087, val_acc: 0.98307\n[Epochs:  2/10] | train_loss: 0.03987, train_acc: 0.98938 | val_loss: 0.03205, val_acc: 0.99087\n[Epochs:  3/10] | train_loss: 0.01844, train_acc: 0.99579 | val_loss: 0.02285, val_acc: 0.99354\n[Epochs:  4/10] | train_loss: 0.00965, train_acc: 0.99824 | val_loss: 0.01680, val_acc: 0.99443\n[Epochs:  5/10] | train_loss: 0.00534, train_acc: 0.99911 | val_loss: 0.01349, val_acc: 0.99532\n[Epochs:  6/10] | train_loss: 0.00299, train_acc: 0.99965 | val_loss: 0.01172, val_acc: 0.99621\n[Epochs:  7/10] | train_loss: 0.00173, train_acc: 0.99985 | val_loss: 0.01097, val_acc: 0.99666\n[Epochs:  8/10] | train_loss: 0.00105, train_acc: 0.99995 | val_loss: 0.01039, val_acc: 0.99644\n[Epochs:  9/10] | train_loss: 0.00065, train_acc: 0.99995 | val_loss: 0.01027, val_acc: 0.99644\n[Epochs: 10/10] | train_loss: 0.00043, train_acc: 0.99998 | val_loss: 0.01016, val_acc: 0.99644\n\n\n\npd.DataFrame({\n    'Training Loss': losses,\n    'Training Accuracy': accs,\n    'Validation Loss': val_losses,\n    'Validation Accuracy': val_accs\n})\n\n\n\n\n\n\n\n\nTraining Loss\nTraining Accuracy\nValidation Loss\nValidation Accuracy\n\n\n\n\n0\n0.207922\n0.942041\n0.061138\n0.983519\n\n\n1\n0.039726\n0.989952\n0.032625\n0.990646\n\n\n2\n0.018566\n0.996189\n0.022673\n0.993318\n\n\n3\n0.009750\n0.998144\n0.017391\n0.995100\n\n\n4\n0.005387\n0.999134\n0.014536\n0.995768\n\n\n5\n0.003051\n0.999703\n0.012875\n0.996437\n\n\n6\n0.001769\n0.999852\n0.012057\n0.996659\n\n\n7\n0.001083\n0.999926\n0.011528\n0.996882\n\n\n8\n0.000670\n0.999975\n0.011344\n0.996882\n\n\n9\n0.000422\n1.000000\n0.011450\n0.996659\n\n\n\n\n\n\n\n\nimport matplotlib.pyplot as plt\n\nfig, ax1 = plt.subplots(figsize=(10, 6))\n\nax2 = ax1.twinx()\nax1.plot(range(1, epochs+1), losses, 'r-o', label='Train Loss')\nax1.plot(range(1, epochs+1), val_losses, 'b-o', label='Val Loss')\nax2.plot(range(1, epochs+1), accs, 'r-x', label='Train Accuracy')\nax2.plot(range(1, epochs+1), val_accs, 'b-x', label='Val Accuracy')\n\nax1.set_xlabel('Epoch')\nax1.set_ylabel('Loss', color='r')\nax2.set_ylabel('Accuracy', color='b')\n\nax1.legend(loc='center')\nax2.legend(loc='center right')\n\nplt.title('Loss and Accuracy per Epoch')\nplt.show()"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#previewing-real-news-data",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#previewing-real-news-data",
+    "title": "Fake and Real News Classification",
+    "section": "4.1 👀 Previewing Real News Data",
+    "text": "4.1 👀 Previewing Real News Data\nLet’s inspect the first few rows of the real news dataset to understand its structure and content.\n\n\nCode\nreal.head()\n\n\n\n\n\n\n\n\n\ntitle\ntext\n\n\n\n\n0\nAs U.S. budget fight looms, Republicans flip t...\nWASHINGTON (Reuters) - The head of a conservat...\n\n\n1\nU.S. military to accept transgender recruits o...\nWASHINGTON (Reuters) - Transgender people will...\n\n\n2\nSenior U.S. Republican senator: 'Let Mr. Muell...\nWASHINGTON (Reuters) - The special counsel inv...\n\n\n3\nFBI Russia probe helped by Australian diplomat...\nWASHINGTON (Reuters) - Trump campaign adviser ...\n\n\n4\nTrump wants Postal Service to charge 'much mor...\nSEATTLE/WASHINGTON (Reuters) - President Donal...\n\n\n\n\n\n\n\n\n4.1.1 🔍 Observations:\n\nThe dataset contains two textual fields: title and text.\nThe texts are formal news content, often starting with a dateline like “WASHINGTON (Reuters)…”. This structure will help guide our preprocessing and tokenization strategy."
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#previewing-fake-news-data",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#previewing-fake-news-data",
+    "title": "Fake and Real News Classification",
+    "section": "4.2 👀 Previewing Fake News Data",
+    "text": "4.2 👀 Previewing Fake News Data\nLet’s examine the first few rows of the fake news dataset to understand its structure and how it compares to the real news dataset.\nThis helps verify consistency in formatting and content across both datasets.\n\n\nCode\nfake.head()\n\n\n\n\n\n\n\n\n\ntitle\ntext\n\n\n\n\n0\nDonald Trump Sends Out Embarrassing New Year’...\nDonald Trump just couldn t wish all Americans ...\n\n\n1\nDrunk Bragging Trump Staffer Started Russian ...\nHouse Intelligence Committee Chairman Devin Nu...\n\n\n2\nSheriff David Clarke Becomes An Internet Joke...\nOn Friday, it was revealed that former Milwauk...\n\n\n3\nTrump Is So Obsessed He Even Has Obama’s Name...\nOn Christmas day, Donald Trump announced that ...\n\n\n4\nPope Francis Just Called Out Donald Trump Dur...\nPope Francis used his annual Christmas Day mes..."
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#label-assignment",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#label-assignment",
+    "title": "Fake and Real News Classification",
+    "section": "5.1 🏷️ Label Assignment",
+    "text": "5.1 🏷️ Label Assignment\nTo enable binary classification, we add a label column to each dataset:\n\n1 for real news\n0 for fake news\n\n\n\nCode\nreal['label'] = 1\nfake['label'] = 0"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#dataset-combination",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#dataset-combination",
+    "title": "Fake and Real News Classification",
+    "section": "5.2 🧩 Dataset Combination",
+    "text": "5.2 🧩 Dataset Combination\nWe concatenate both the labeled real and fake datasets into one unified DataFrame. This combined dataset will be used for training and evaluation.\n\n\nCode\ndf = pd.concat([real, fake], ignore_index=True)"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#preparing-stopwords",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#preparing-stopwords",
+    "title": "Fake and Real News Classification",
+    "section": "5.3 🔤 Preparing Stopwords",
+    "text": "5.3 🔤 Preparing Stopwords\nWe load a predefined set of common English stopwords using NLTK. These words typically provide little semantic value and can be removed during preprocessing.\n\n\nCode\nstop_words = set(stopwords.words('english'))"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#text-preprocessing-function",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#text-preprocessing-function",
+    "title": "Fake and Real News Classification",
+    "section": "5.4 🧹 Text Preprocessing Function",
+    "text": "5.4 🧹 Text Preprocessing Function\nWe define a function remove_stopwrods that: - Tokenizes the input text - Removes stopwords and non-alphabetic tokens - Returns a cleaned version of the input text\n\n\nCode\ndef remove_stopwords(text):\n    word_tokens = word_tokenize(text)\n    filtered_text = [word for word in word_tokens if word.lower() not in stop_words and word.isalpha()]\n    return \" \".join(filtered_text)"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#rebuilding-unified-text-field",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#rebuilding-unified-text-field",
+    "title": "Fake and Real News Classification",
+    "section": "5.5 🧱 Rebuilding Unified Text Field",
+    "text": "5.5 🧱 Rebuilding Unified Text Field\nWe ensure that the content field is constructed by combining title and text again. This guarantees that any previous operations affecting content are overwritten and consistent.\n\n\nCode\ndf['content'] = df['title'] + ' ' + df['text']"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#final-text-cleaning",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#final-text-cleaning",
+    "title": "Fake and Real News Classification",
+    "section": "5.6 🧼 Final Text Cleaning",
+    "text": "5.6 🧼 Final Text Cleaning\nWe apply our custom remove_stopwrods function to clean the combined content field. This includes removing stopwords and non-alphabetic tokens.\n\n\nCode\ndf['content'] = df['content'].apply(remove_stopwords)"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#dataset-shuffling",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#dataset-shuffling",
+    "title": "Fake and Real News Classification",
+    "section": "5.7 🔀 Dataset Shuffling",
+    "text": "5.7 🔀 Dataset Shuffling\nShuffling the dataset ensures that there is no ordering bias when feeding data to the model.\n\n\nCode\ndf = df.sample(frac=1, random_state=101)"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#final-dataset-structure",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#final-dataset-structure",
+    "title": "Fake and Real News Classification",
+    "section": "5.8 📊 Final Dataset Structure",
+    "text": "5.8 📊 Final Dataset Structure\nWe keep only the content and label columns and reset the index. This creates a clean and consistent structure for downstream model training.\n\n\nCode\ndf = df[['content', 'label']].reset_index(drop=True)\ndf.head()\n\n\n\n\n\n\n\n\n\ncontent\nlabel\n\n\n\n\n0\nFactbox Humanitarian crisis worsens Bangladesh...\n1\n\n\n1\nTransgender court hearing set amid fight Trump...\n1\n\n\n2\nBRIEFCASES FULL MONEY One Undercover Whistlebl...\n0\n\n\n3\nFIVE REASONS Vote Donald Trump Video LANGUAGE ...\n0\n\n\n4\nTrump administration sued phone searches borde...\n1"
+  },
+  {
+    "objectID": "acc-0-996-fake-and-real-news-classification-nn.html#preview-output",
+    "href": "acc-0-996-fake-and-real-news-classification-nn.html#preview-output",
+    "title": "Fake and Real News Classification",
+    "section": "5.9 Preview Output",
+    "text": "5.9 Preview Output\nFrom the preview, we confirm that each row has cleaned content and an associated binary label."
+  }
+]
